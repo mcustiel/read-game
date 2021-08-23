@@ -100,9 +100,8 @@ func getOptionEventHandler() func(events.Event, ...interface{}) error {
 			audioCache[target.sylabe.AudioFile].Play(100, 2)
 		}
 		if game.currentSylabe == len(hiddenWord.word.Sylabes) {
-			// game.playing = false
+			game.playing = false
 			game.hiddenWord.button.Text = game.hiddenWord.word.Word
-			// game.timer.WaitMillis(uint32(5000))
 		}
 		return nil
 	}
@@ -121,7 +120,7 @@ func getTargetEventHandler() func(events.Event, ...interface{}) error {
 			return nil
 		}
 		fmt.Println("Clicked target rectange: " + target.sylabe.Sylabe)
-		if target.filled {
+		if button.Text != "" {
 			audioCache[target.sylabe.AudioFile].Play(100, 2)
 		}
 		return nil
@@ -266,35 +265,84 @@ func (game *Game) Play() {
 	game.init()
 	defer game.end()
 
-	game.playing = true
-	for game.playing {
-		game.display.Clear()
-		game.display.DisplayImage(bgImage, view.Coord{0, 0})
+	exit := false
 
-		eventList = game.eventScanner.GetEvents()
-		for i := 0; i < len(eventList); i++ {
-			event := eventList[i]
-			if event.IsQuit() {
-				game.playing = false
-			} else if event.IsMouseUp() {
-				game.hiddenWord.button.OnClick(event, game, game.hiddenWord)
-				for i := 0; i < len(game.options); i++ {
-					game.options[i].button.OnClick(event, game, i)
+	againButton := view.Button{
+		// Text: word.Word,
+		Text: "->",
+		Coord: view.Coord{
+			X: (view.WINDOW_WIDTH - 200) / 2,
+			Y: view.WINDOW_HEIGHT - BUTTON_HEIGHT*1.5},
+		Rect: view.Rect{
+			W: 200,
+			H: BUTTON_HEIGHT},
+		BgColor:     view.RGBA{0, 255, 0, 255},
+		BorderColor: view.RGBA{0, 64, 255, 255},
+		TextColor:   view.RGBA{0, 64, 255, 255},
+		OnClick: func(event events.Event, args ...interface{}) error {
+			game := args[0].(*Game)
+			button := args[1].(view.Button)
+			data := event.GetEventData()
+			x := data["x"].(int32)
+			y := data["y"].(int32)
+			if !(x > button.X && x < button.X+button.W && y > button.Y && y < button.Y+button.H) {
+				return nil
+			}
+			fmt.Println("Clicked again button")
+			game.init()
+			game.playing = true
+			return nil
+		}}
+
+	for !exit {
+
+		game.playing = true
+		for game.playing {
+			game.display.Clear()
+			game.display.DisplayImage(bgImage, view.Coord{0, 0})
+
+			eventList = game.eventScanner.GetEvents()
+			for i := 0; i < len(eventList); i++ {
+				event := eventList[i]
+				if event.IsQuit() {
+					game.playing = false
+					exit = true
+				} else if event.IsMouseUp() {
+					game.hiddenWord.button.OnClick(event, game, game.hiddenWord)
+					for i := 0; i < len(game.options); i++ {
+						game.options[i].button.OnClick(event, game, i)
+					}
+					for i := 0; i < len(game.targets); i++ {
+						game.targets[i].button.OnClick(event, game, i)
+					}
 				}
-				for i := 0; i < len(game.targets); i++ {
-					game.targets[i].button.OnClick(event, game, i)
+			}
+			for i := 0; i < len(game.options); i++ {
+				game.display.DrawButton(*game.options[i].button)
+			}
+			for i := 0; i < len(game.targets); i++ {
+				game.display.DrawButton(*game.targets[i].button)
+			}
+			game.display.DrawButton(*game.hiddenWord.button)
+			if !game.playing {
+				game.display.DrawButton(againButton)
+			}
+			game.display.Refresh()
+
+			game.timer.WaitFrameRate()
+		}
+
+		for !game.playing && !exit {
+			eventList = game.eventScanner.GetEvents()
+			for i := 0; i < len(eventList); i++ {
+				event := eventList[i]
+				if event.IsQuit() {
+					game.playing = false
+					exit = true
+				} else if event.IsMouseUp() {
+					againButton.OnClick(event, game, againButton)
 				}
 			}
 		}
-		for i := 0; i < len(game.options); i++ {
-			game.display.DrawButton(*game.options[i].button)
-		}
-		for i := 0; i < len(game.targets); i++ {
-			game.display.DrawButton(*game.targets[i].button)
-		}
-		game.display.DrawButton(*game.hiddenWord.button)
-		game.display.Refresh()
-
-		game.timer.WaitFrameRate()
 	}
 }
