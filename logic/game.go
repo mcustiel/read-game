@@ -47,6 +47,7 @@ type Game struct {
 	targets       []BlankPlace
 	currentSylabe int
 	playing       bool
+	previousWord  *words.Word
 }
 
 var audioCache map[string]audio.AudioFile
@@ -67,6 +68,7 @@ func NewGame(data words.GameDataAccessor,
 	game.audioLoader = audioLoader
 	game.imageLoader = imageLoader
 	game.playing = false
+	game.previousWord = nil
 
 	return game
 }
@@ -101,6 +103,7 @@ func getOptionEventHandler() func(events.Event, ...interface{}) error {
 		}
 		if game.currentSylabe == len(hiddenWord.word.Sylabes) {
 			game.playing = false
+			game.hiddenWord.button.BgColor = view.RGBA{255, 255, 255, 255}
 			game.hiddenWord.button.Text = game.hiddenWord.word.Word
 		}
 		return nil
@@ -148,7 +151,7 @@ func (game *Game) init() error {
 	game.currentSylabe = 0
 	windowFourth := view.WINDOW_HEIGHT / 4
 	bgImage, err = game.imageLoader.Load("images/backgrounds/child-drawing.jpg", view.Rect{800, 600})
-	word, err := game.data.GetRandomWord([]*words.Word{})
+	word, err := game.data.GetRandomWord([]*words.Word{game.previousWord})
 	if err != nil {
 		log.Fatal(err)
 		return err
